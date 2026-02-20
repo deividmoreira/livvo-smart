@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,16 @@ import {
   Platform,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Header, MappoPropertyCard } from '../components';
 import { InteractiveMapWeb } from '../components/InteractiveMap.web';
-import { Imovel, TipoImovel } from '../types';
+import { Imovel, TipoImovel, FiltrosBusca } from '../types';
 import { COLORS, SPACING, FONTS } from '../constants';
-import { MOCK_IMOVEIS } from './mockData';
+import { buscarImoveis, buscarImoveisPorTexto } from '../services/imoveis';
 
 type RootStackParamList = {
   Home: undefined;
@@ -31,59 +32,71 @@ export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
 
   const [searchText, setSearchText] = useState('');
-  const [imoveis] = useState<Imovel[]>(MOCK_IMOVEIS);
+  const [imoveis, setImoveis] = useState<Imovel[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [total, setTotal] = useState(0);
   const [selectedTipo, setSelectedTipo] = useState<TipoImovel | null>(null);
   const [selectedImovelId, setSelectedImovelId] = useState<string | null>(null);
 
-  // Filtros de preço
   const [precoMin, setPrecoMin] = useState<number | null>(null);
   const [precoMax, setPrecoMax] = useState<number | null>(null);
-
-  // Filtros de quartos/banheiros/vagas
   const [minQuartos, setMinQuartos] = useState<number | null>(null);
   const [minBanheiros, setMinBanheiros] = useState<number | null>(null);
   const [minVagas, setMinVagas] = useState<number | null>(null);
 
-  // Filtrar imóveis
-  const filteredImoveis = (() => {
-    let result = [...imoveis];
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    if (selectedTipo) {
-      result = result.filter(i => i.tipo === selectedTipo);
-    }
+  const buscar = useCallback(async (texto: string) => {
+    setCarregando(true);
+    try {
+      const filtros: FiltrosBusca = {
+        tipo: selectedTipo || undefined,
+        valorMinimo: precoMin || undefined,
+        valorMaximo: precoMax || undefined,
+        quartosMinimo: minQuartos || undefined,
+      };
 
-    if (searchText.trim()) {
-      const textoLower = searchText.toLowerCase();
-      result = result.filter(i =>
-        i.titulo.toLowerCase().includes(textoLower) ||
-        i.descricao.toLowerCase().includes(textoLower) ||
-        i.localizacao.bairro?.toLowerCase().includes(textoLower) ||
-        i.localizacao.cidade?.toLowerCase().includes(textoLower)
-      );
-    }
+      let resultado: Imovel[];
 
-    if (precoMin != null) {
-      result = result.filter(i => i.valor >= precoMin);
-    }
-    if (precoMax != null) {
-      result = result.filter(i => i.valor <= precoMax);
-    }
+      if (texto.trim()) {
+        resultado = await buscarImoveisPorTexto(texto.trim(), filtros);
+        setTotal(resultado.length);
+      } else {
+        const res = await buscarImoveis(filtros);
+        resultado = res.imoveis;
+        setTotal(res.total);
+      }
 
-    if (minQuartos) {
-      result = result.filter(i => (i.caracteristicas.quartos || 0) >= minQuartos);
-    }
-    if (minBanheiros) {
-      result = result.filter(i => (i.caracteristicas.banheiros || 0) >= minBanheiros);
-    }
-    if (minVagas) {
-      result = result.filter(i => (i.caracteristicas.vagas_garagem || 0) >= minVagas);
-    }
+      // Filtros client-side não suportados pela API
+      if (minBanheiros) {
+        resultado = resultado.filter(i => (i.caracteristicas.banheiros || 0) >= minBanheiros);
+      }
+      if (minVagas) {
+        resultado = resultado.filter(i => (i.caracteristicas.vagas_garagem || 0) >= minVagas);
+      }
 
-    return result;
-  })();
+      setImoveis(resultado);
+    } catch (err) {
+      console.error('Erro ao buscar imóveis:', err);
+    } finally {
+      setCarregando(false);
+    }
+  }, [selectedTipo, precoMin, precoMax, minQuartos, minBanheiros, minVagas]);
+
+  // Debounce: re-busca sempre que texto ou filtros mudam
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      buscar(searchText);
+    }, 400);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchText, buscar]);
 
   const handleSearch = () => {
-    // Filtragem reativa - já funciona via searchText state
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    buscar(searchText);
   };
 
   const handleViewDetails = (imovel: Imovel) => {
@@ -99,7 +112,6 @@ export const HomeScreen: React.FC = () => {
     setPrecoMax(max);
   };
 
-  // Largura dos cards para grid 2 colunas
   const listPanelWidth = IS_DESKTOP ? SCREEN_WIDTH * 0.48 : SCREEN_WIDTH;
   const cardWidth = IS_DESKTOP
     ? (listPanelWidth - SPACING.xl * 2 - SPACING.md) / 2
@@ -109,14 +121,13 @@ export const HomeScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
 
-      {/* Header: Nav + Filtros */}
       <Header
         searchText={searchText}
         onSearchChange={setSearchText}
         onSearch={handleSearch}
         selectedTipo={selectedTipo}
         onTipoChange={setSelectedTipo}
-        resultCount={filteredImoveis.length}
+        resultCount={total}
         precoMin={precoMin}
         precoMax={precoMax}
         onPrecoChange={handlePrecoChange}
@@ -128,13 +139,11 @@ export const HomeScreen: React.FC = () => {
         onVagasChange={setMinVagas}
       />
 
-      {/* Main Content: Map (left) + List (right) */}
       <View style={styles.mainContent}>
-        {/* Mapa à esquerda */}
         {Platform.OS === 'web' && IS_DESKTOP && (
           <View style={styles.mapPanel}>
             <InteractiveMapWeb
-              imoveis={filteredImoveis}
+              imoveis={imoveis}
               onMarkerPress={handleMarkerPress}
               onViewDetails={handleViewDetails}
               selectedImovelId={selectedImovelId || undefined}
@@ -142,24 +151,27 @@ export const HomeScreen: React.FC = () => {
           </View>
         )}
 
-        {/* Lista à direita */}
         <ScrollView
           style={styles.listPanel}
           showsVerticalScrollIndicator={true}
           contentContainerStyle={styles.listContent}
         >
-          {/* Título da seção */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
               Imóveis à venda em Goiânia, GO
             </Text>
-            <Text style={styles.sectionCount}>
-              {filteredImoveis.length} resultados
-            </Text>
+            {!carregando && (
+              <Text style={styles.sectionCount}>
+                {total} {total === 1 ? 'resultado' : 'resultados'}
+              </Text>
+            )}
           </View>
 
-          {/* Grid de cards */}
-          {filteredImoveis.length === 0 ? (
+          {carregando ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+            </View>
+          ) : imoveis.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>Nenhum imóvel encontrado</Text>
               <Text style={styles.emptySubtitle}>
@@ -168,7 +180,7 @@ export const HomeScreen: React.FC = () => {
             </View>
           ) : (
             <View style={styles.grid}>
-              {filteredImoveis.map((imovel) => (
+              {imoveis.map((imovel) => (
                 <View
                   key={imovel.id}
                   style={[
@@ -187,11 +199,10 @@ export const HomeScreen: React.FC = () => {
           )}
         </ScrollView>
 
-        {/* Mapa abaixo no mobile */}
         {Platform.OS === 'web' && !IS_DESKTOP && (
           <View style={styles.mapPanelMobile}>
             <InteractiveMapWeb
-              imoveis={filteredImoveis}
+              imoveis={imoveis}
               onMarkerPress={handleMarkerPress}
               onViewDetails={handleViewDetails}
               selectedImovelId={selectedImovelId || undefined}
@@ -212,7 +223,6 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: IS_DESKTOP ? 'row' : 'column',
   },
-  // Mapa (esquerda no desktop)
   mapPanel: {
     width: '52%',
     position: 'relative' as any,
@@ -220,7 +230,6 @@ const styles = StyleSheet.create({
   mapPanelMobile: {
     height: 300,
   },
-  // Lista (direita no desktop)
   listPanel: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -228,7 +237,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: SPACING.xxxl,
   },
-  // Seção título
   sectionHeader: {
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.lg,
@@ -245,7 +253,10 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.family.body,
     color: COLORS.textSecondary,
   },
-  // Grid 2 colunas
+  loadingContainer: {
+    paddingTop: SPACING.xxxl,
+    alignItems: 'center',
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -256,7 +267,6 @@ const styles = StyleSheet.create({
     flex: IS_DESKTOP ? undefined : 1,
     minWidth: IS_DESKTOP ? undefined : '100%',
   },
-  // Empty
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',

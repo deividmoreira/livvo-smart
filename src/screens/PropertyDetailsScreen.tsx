@@ -42,7 +42,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Imovel, Media } from '../types';
 import { COLORS, SPACING, BORDER_RADIUS, SHADOWS, PROPERTY_STATUS, GLASS, GRADIENTS } from '../constants';
 import { VirtualTourModal } from '../components';
-import { MOCK_IMOVEIS } from './mockData';
+import { buscarImovelPorId } from '../services/imoveis';
 import { useAuth } from '../context/AuthContext';
 import { isFavorito, adicionarFavorito, removerFavorito } from '../services/favoritos';
 import {
@@ -72,14 +72,18 @@ export const PropertyDetailsScreen: React.FC = () => {
   const { usuario } = useAuth();
 
   const [imovel, setImovel] = useState<Imovel | null>(null);
+  const [carregando, setCarregando] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [favorito, setFavorito] = useState(false);
   const [showTourModal, setShowTourModal] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    const found = MOCK_IMOVEIS.find(i => i.id === imovelId);
-    if (found) setImovel(found);
+    setCarregando(true);
+    buscarImovelPorId(imovelId)
+      .then(data => setImovel(data))
+      .catch(() => setImovel(null))
+      .finally(() => setCarregando(false));
   }, [imovelId]);
 
   useEffect(() => {
@@ -113,10 +117,10 @@ export const PropertyDetailsScreen: React.FC = () => {
     }
   }, [usuario, favorito, imovelId, navigation]);
 
-  if (!imovel) {
+  if (carregando || !imovel) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Carregando...</Text>
+        <Text>{carregando ? 'Carregando...' : 'Imóvel não encontrado.'}</Text>
       </View>
     );
   }

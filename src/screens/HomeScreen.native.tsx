@@ -18,7 +18,7 @@ import { SearchBar, MapMarkerCard, PropertyCard } from '../components';
 import { Imovel, FiltrosBusca, MapRegion } from '../types';
 import { COLORS, DEFAULT_MAP_REGION, BORDER_RADIUS, SHADOWS, SPACING } from '../constants';
 import { formatarMoedaAbreviada } from '../utils/formatters';
-import { MOCK_IMOVEIS } from './mockData';
+import { buscarImoveis, buscarImoveisPorTexto, buscarImoveisPorRegiao } from '../services/imoveis';
 
 type RootStackParamList = {
   Home: undefined;
@@ -36,100 +36,88 @@ export const HomeScreen: React.FC = () => {
 
   const [searchText, setSearchText] = useState('');
   const [filtros, setFiltros] = useState<FiltrosBusca>({});
-  const [imoveis, setImoveis] = useState<Imovel[]>(MOCK_IMOVEIS);
+  const [imoveis, setImoveis] = useState<Imovel[]>([]);
   const [selectedImovel, setSelectedImovel] = useState<Imovel | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [region, setRegion] = useState<MapRegion>(DEFAULT_MAP_REGION);
 
-  // Initial Location
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const regionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Carga inicial
   useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        try {
-          const location = await Location.getCurrentPositionAsync({});
-          const newRegion = {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
-          };
-          setRegion(newRegion);
-          mapRef.current?.animateToRegion(newRegion, 1000);
-        } catch (error) {
-          console.log('Erro ao obter localização:', error);
-        }
-      }
-    })();
+    carregarImoveis();
+    solicitarLocalizacao();
   }, []);
 
-  // Filter Logic
-  const filtrarImoveisLocalmente = useCallback(() => {
-    let resultado = [...MOCK_IMOVEIS];
+  const carregarImoveis = async () => {
+    setLoading(true);
+    try {
+      const res = await buscarImoveis({});
+      setImoveis(res.imoveis);
+    } catch (err) {
+      console.error('Erro ao carregar imóveis:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    if (filtros.tipo) {
-      resultado = resultado.filter(i => i.tipo === filtros.tipo);
+  const solicitarLocalizacao = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === 'granted') {
+      try {
+        const location = await Location.getCurrentPositionAsync({});
+        const newRegion = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        };
+        setRegion(newRegion);
+        mapRef.current?.animateToRegion(newRegion, 1000);
+      } catch {
+        // Usa região padrão se localização falhar
+      }
     }
-    if (filtros.valorMaximo) {
-      resultado = resultado.filter(i => i.valor <= filtros.valorMaximo!);
-    }
-    if (filtros.valorMinimo) {
-      resultado = resultado.filter(i => i.valor >= filtros.valorMinimo!);
-    }
-    if (filtros.bairro) {
-      resultado = resultado.filter(i =>
-        i.localizacao.bairro?.toLowerCase().includes(filtros.bairro!.toLowerCase())
-      );
-    }
-    if (filtros.quartosMinimo && filtros.tipo !== 'terreno') {
-      resultado = resultado.filter(i =>
-        (i.caracteristicas.quartos || 0) >= filtros.quartosMinimo!
-      );
-    }
-    return resultado;
+  };
+
+  // Re-busca quando filtros mudam (debounced)
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await buscarImoveis(filtros);
+        setImoveis(res.imoveis);
+      } catch (err) {
+        console.error('Erro ao filtrar imóveis:', err);
+      } finally {
+        setLoading(false);
+      }
+    }, 400);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, [filtros]);
 
-  useEffect(() => {
-    setImoveis(filtrarImoveisLocalmente());
-  }, [filtros, filtrarImoveisLocalmente]);
-
-  // Search Logic
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     if (!searchText.trim()) {
-      setImoveis(filtrarImoveisLocalmente());
+      setLoading(true);
+      try {
+        const res = await buscarImoveis(filtros);
+        setImoveis(res.imoveis);
+      } catch (err) {
+        console.error('Erro na busca:', err);
+        Alert.alert('Erro', 'Não foi possível realizar a busca.');
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
     setLoading(true);
-
     try {
-      const textoLower = searchText.toLowerCase();
-      let resultado = MOCK_IMOVEIS.filter(i =>
-        i.titulo.toLowerCase().includes(textoLower) ||
-        i.descricao.toLowerCase().includes(textoLower) ||
-        i.localizacao.bairro?.toLowerCase().includes(textoLower) ||
-        i.localizacao.cidade?.toLowerCase().includes(textoLower)
-      );
-
-      if (textoLower.includes('terreno')) {
-        resultado = resultado.filter(i => i.tipo === 'terreno');
-      } else if (textoLower.includes('casa')) {
-        resultado = resultado.filter(i => i.tipo === 'casa');
-      } else if (textoLower.includes('apartamento')) {
-        resultado = resultado.filter(i => i.tipo === 'apartamento');
-      }
-
-      const valorMatch = searchText.match(/(\d+)\s*(mil|milhão|milhões)/i);
-      if (valorMatch) {
-        let valor = parseInt(valorMatch[1]);
-        if (valorMatch[2].toLowerCase() === 'mil') {
-          valor *= 1000;
-        } else {
-          valor *= 1000000;
-        }
-        resultado = resultado.filter(i => i.valor <= valor);
-      }
-
+      const resultado = await buscarImoveisPorTexto(searchText.trim(), filtros);
       setImoveis(resultado);
 
       if (resultado.length > 0) {
@@ -142,32 +130,43 @@ export const HomeScreen: React.FC = () => {
         };
         mapRef.current?.animateToRegion(newRegion, 1000);
       }
-    } catch (error) {
-      console.error('Erro na busca:', error);
+    } catch (err) {
+      console.error('Erro na busca:', err);
       Alert.alert('Erro', 'Não foi possível realizar a busca. Tente novamente.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchText, filtros]);
 
-  // Interactions
+  // Busca por região do mapa (debounced para evitar muitas requisições)
+  const handleRegionChange = useCallback((newRegion: Region) => {
+    setRegion(newRegion);
+
+    if (regionDebounceRef.current) clearTimeout(regionDebounceRef.current);
+    regionDebounceRef.current = setTimeout(async () => {
+      try {
+        const resultado = await buscarImoveisPorRegiao(newRegion, filtros);
+        setImoveis(resultado);
+      } catch (err) {
+        console.error('Erro ao buscar por região:', err);
+      }
+    }, 1000);
+  }, [filtros]);
+
   const handleMarkerPress = (imovel: Imovel) => {
     setSelectedImovel(imovel);
 
-    // Find index for carousel scroll
     const index = imoveis.findIndex(i => i.id === imovel.id);
     if (index !== -1 && flatListRef.current) {
       flatListRef.current.scrollToIndex({ index, animated: true });
     }
 
-    // Animate map
-    const newRegion = {
+    mapRef.current?.animateToRegion({
       latitude: imovel.localizacao.latitude,
       longitude: imovel.localizacao.longitude,
       latitudeDelta: 0.005,
       longitudeDelta: 0.005,
-    };
-    mapRef.current?.animateToRegion(newRegion, 1000);
+    }, 1000);
   };
 
   const handleViewDetails = () => {
@@ -180,18 +179,13 @@ export const HomeScreen: React.FC = () => {
     const index = Math.round(event.nativeEvent.contentOffset.x / (width * 0.85 + SPACING.md));
     if (imoveis[index] && imoveis[index].id !== selectedImovel?.id) {
       setSelectedImovel(imoveis[index]);
-      const newRegion = {
+      mapRef.current?.animateToRegion({
         latitude: imoveis[index].localizacao.latitude,
         longitude: imoveis[index].localizacao.longitude,
         latitudeDelta: 0.005,
         longitudeDelta: 0.005,
-      };
-      mapRef.current?.animateToRegion(newRegion, 1000);
+      }, 1000);
     }
-  };
-
-  const handleRegionChange = (newRegion: Region) => {
-    setRegion(newRegion);
   };
 
   const getMarkerColor = (tipo: string) => {
@@ -255,6 +249,12 @@ export const HomeScreen: React.FC = () => {
         />
       </View>
 
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      )}
+
       {selectedImovel ? (
         <View style={{ position: 'absolute', bottom: 20, left: 0, right: 0, paddingHorizontal: 10 }}>
           <MapMarkerCard
@@ -285,18 +285,6 @@ export const HomeScreen: React.FC = () => {
           />
         </View>
       )}
-
-      {loading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </View>
-      )}
-
-      {selectedImovel && !loading && (
-        // Optional: show quick details or actions, but Carousel already covers it.
-        // Keeping it commented or removed to avoid clutter as per new design.
-        <View />
-      )}
     </View>
   );
 };
@@ -317,7 +305,6 @@ const styles = StyleSheet.create({
     paddingTop: StatusBar.currentHeight ? StatusBar.currentHeight + 10 : 50,
     paddingHorizontal: SPACING.md,
     zIndex: 10,
-    // Background handled by SearchBar itself
   },
   carouselContainer: {
     position: 'absolute',
