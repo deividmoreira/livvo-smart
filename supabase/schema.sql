@@ -128,16 +128,14 @@ CREATE TABLE IF NOT EXISTS public.midias (
     tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('imagem', 'video')),
     principal BOOLEAN DEFAULT FALSE,
     ordem INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-    -- Apenas uma mídia pode ser principal por imóvel
-    CONSTRAINT midias_principal_unique UNIQUE (imovel_id, principal)
-        WHERE (principal = TRUE)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_midias_imovel_id ON public.midias(imovel_id);
 CREATE INDEX IF NOT EXISTS idx_midias_ordem ON public.midias(imovel_id, ordem);
+-- Garante apenas uma mídia principal por imóvel
+CREATE UNIQUE INDEX IF NOT EXISTS midias_principal_unique ON public.midias(imovel_id) WHERE (principal = TRUE);
 
 -- ============================================
 -- FUNÇÕES E TRIGGERS
