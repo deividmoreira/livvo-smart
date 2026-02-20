@@ -302,6 +302,156 @@ CREATE POLICY "Donos podem deletar mídias"
     );
 
 -- ============================================
+-- TABELA: perfis (perfil unificado de todos os usuários)
+-- ============================================
+CREATE TABLE IF NOT EXISTS public.perfis (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    nome VARCHAR(255) NOT NULL,
+    tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('corretor', 'usuario', 'administrador')),
+    foto_url TEXT,
+    telefone VARCHAR(20),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT perfis_user_id_unique UNIQUE (user_id)
+);
+
+-- Índices
+CREATE INDEX IF NOT EXISTS idx_perfis_user_id ON public.perfis(user_id);
+CREATE INDEX IF NOT EXISTS idx_perfis_tipo ON public.perfis(tipo);
+
+-- Trigger updated_at
+CREATE TRIGGER update_perfis_updated_at
+    BEFORE UPDATE ON public.perfis
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- TABELA: favoritos
+-- ============================================
+CREATE TABLE IF NOT EXISTS public.favoritos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    imovel_id UUID NOT NULL REFERENCES public.imoveis(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT favoritos_unique UNIQUE (user_id, imovel_id)
+);
+
+-- Índices
+CREATE INDEX IF NOT EXISTS idx_favoritos_user_id ON public.favoritos(user_id);
+CREATE INDEX IF NOT EXISTS idx_favoritos_imovel_id ON public.favoritos(imovel_id);
+
+-- ============================================
+-- ALTERAÇÃO: corretores — vínculo opcional com imobiliária
+-- ============================================
+ALTER TABLE public.corretores
+    ADD COLUMN IF NOT EXISTS imobiliaria_id UUID REFERENCES public.imobiliarias(id) ON DELETE SET NULL;
+
+-- ============================================
+-- RLS: perfis
+-- ============================================
+ALTER TABLE public.perfis ENABLE ROW LEVEL SECURITY;
+
+-- Leitura pública
+CREATE POLICY "Perfis são visíveis para todos"
+    ON public.perfis FOR SELECT
+    USING (true);
+
+-- Usuário escreve apenas seu próprio perfil
+CREATE POLICY "Usuários podem criar seu próprio perfil"
+    ON public.perfis FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Usuários podem atualizar seu próprio perfil"
+    ON public.perfis FOR UPDATE
+    USING (auth.uid() = user_id);
+
+-- Admin pode deletar qualquer perfil
+CREATE POLICY "Admins podem deletar perfis"
+    ON public.perfis FOR DELETE
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.perfis p
+            WHERE p.user_id = auth.uid() AND p.tipo = 'administrador'
+        )
+    );
+
+-- ============================================
+-- RLS: favoritos
+-- ============================================
+ALTER TABLE public.favoritos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Usuários leem apenas seus favoritos"
+    ON public.favoritos FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Usuários inserem apenas seus favoritos"
+    ON public.favoritos FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Usuários deletam apenas seus favoritos"
+    ON public.favoritos FOR DELETE
+    USING (auth.uid() = user_id);
+
+-- ============================================
+-- RLS adicional: admin pode gerenciar tudo em imoveis e midias
+-- ============================================
+
+CREATE POLICY "Admins podem inserir qualquer imóvel"
+    ON public.imoveis FOR INSERT
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.perfis p
+            WHERE p.user_id = auth.uid() AND p.tipo = 'administrador'
+        )
+    );
+
+CREATE POLICY "Admins podem atualizar qualquer imóvel"
+    ON public.imoveis FOR UPDATE
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.perfis p
+            WHERE p.user_id = auth.uid() AND p.tipo = 'administrador'
+        )
+    );
+
+CREATE POLICY "Admins podem deletar qualquer imóvel"
+    ON public.imoveis FOR DELETE
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.perfis p
+            WHERE p.user_id = auth.uid() AND p.tipo = 'administrador'
+        )
+    );
+
+CREATE POLICY "Admins podem gerenciar qualquer mídia"
+    ON public.midias FOR INSERT
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.perfis p
+            WHERE p.user_id = auth.uid() AND p.tipo = 'administrador'
+        )
+    );
+
+CREATE POLICY "Admins podem atualizar qualquer mídia"
+    ON public.midias FOR UPDATE
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.perfis p
+            WHERE p.user_id = auth.uid() AND p.tipo = 'administrador'
+        )
+    );
+
+CREATE POLICY "Admins podem deletar qualquer mídia"
+    ON public.midias FOR DELETE
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.perfis p
+            WHERE p.user_id = auth.uid() AND p.tipo = 'administrador'
+        )
+    );
+
+-- ============================================
 -- STORAGE BUCKETS (executar no Supabase Dashboard)
 -- ============================================
 -- INSERT INTO storage.buckets (id, name, public)

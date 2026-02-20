@@ -1,2 +1,10 @@
 export { HomeScreen } from './HomeScreen';
 export { PropertyDetailsScreen } from './PropertyDetailsScreen';
+export { LoginScreen } from './LoginScreen';
+export { RegisterScreen } from './RegisterScreen';
+export { PerfilScreen } from './PerfilScreen';
+export { FavoritosScreen } from './FavoritosScreen';
+export { DashboardCorretorScreen } from './corretor/DashboardCorretorScreen';
+export { CriarEditarImovelScreen } from './corretor/CriarEditarImovelScreen';
+export { AdminScreen } from './admin/AdminScreen';
+export { GerenciarUsuariosScreen } from './admin/GerenciarUsuariosScreen';

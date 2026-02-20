@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -43,6 +43,8 @@ import { Imovel, Media } from '../types';
 import { COLORS, SPACING, BORDER_RADIUS, SHADOWS, PROPERTY_STATUS, GLASS, GRADIENTS } from '../constants';
 import { VirtualTourModal } from '../components';
 import { MOCK_IMOVEIS } from './mockData';
+import { useAuth } from '../context/AuthContext';
+import { isFavorito, adicionarFavorito, removerFavorito } from '../services/favoritos';
 import {
   formatarMoeda,
   formatarEndereco,
@@ -58,18 +60,20 @@ const { width, height } = Dimensions.get('window');
 type RootStackParamList = {
   Home: undefined;
   PropertyDetails: { imovelId: string };
+  Login: undefined;
 };
 
 type PropertyDetailsRouteProp = RouteProp<RootStackParamList, 'PropertyDetails'>;
 
 export const PropertyDetailsScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const route = useRoute<PropertyDetailsRouteProp>();
   const { imovelId } = route.params;
+  const { usuario } = useAuth();
 
   const [imovel, setImovel] = useState<Imovel | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [favorito, setFavorito] = useState(false);
   const [showTourModal, setShowTourModal] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
@@ -77,6 +81,37 @@ export const PropertyDetailsScreen: React.FC = () => {
     const found = MOCK_IMOVEIS.find(i => i.id === imovelId);
     if (found) setImovel(found);
   }, [imovelId]);
+
+  useEffect(() => {
+    if (usuario && imovelId) {
+      isFavorito(imovelId).then(setFavorito);
+    }
+  }, [usuario, imovelId]);
+
+  const handleToggleFavorito = useCallback(async () => {
+    if (!usuario) {
+      Alert.alert(
+        'Login necessário',
+        'Faça login para salvar imóveis nos favoritos.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Entrar', onPress: () => navigation.navigate('Login') },
+        ]
+      );
+      return;
+    }
+    try {
+      if (favorito) {
+        await removerFavorito(imovelId);
+        setFavorito(false);
+      } else {
+        await adicionarFavorito(imovelId);
+        setFavorito(true);
+      }
+    } catch {
+      Alert.alert('Erro', 'Não foi possível atualizar os favoritos.');
+    }
+  }, [usuario, favorito, imovelId, navigation]);
 
   if (!imovel) {
     return (
@@ -210,12 +245,12 @@ export const PropertyDetailsScreen: React.FC = () => {
           <View style={styles.actionButtons}>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => setIsFavorite(!isFavorite)}
+              onPress={handleToggleFavorito}
             >
               <Heart
                 size={22}
-                color={isFavorite ? COLORS.error : COLORS.text}
-                fill={isFavorite ? COLORS.error : 'transparent'}
+                color={favorito ? COLORS.error : COLORS.text}
+                fill={favorito ? COLORS.error : 'transparent'}
               />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={handleShare}>

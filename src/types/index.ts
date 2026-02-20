@@ -8,6 +8,9 @@ export type PropertyStatus = 'disponivel' | 'negociacao' | 'vendido' | 'reservad
 // Tipo de anunciante
 export type AdvertiserType = 'corretor' | 'imobiliaria';
 
+// Tipo de usuário no sistema
+export type TipoUsuario = 'corretor' | 'usuario' | 'administrador';
+
 // Interface para localização geográfica
 export interface Location {
   latitude: number;
@@ -37,6 +40,7 @@ export interface Corretor {
   whatsapp: string;
   telefone?: string;
   email?: string;
+  imobiliaria_id?: string;
   created_at?: string;
 }
 
@@ -141,13 +145,34 @@ export interface MapMarker {
   imovel: Imovel;
 }
 
-// Interface para usuário autenticado (corretor/imobiliária)
+// Perfil unificado de todos os usuários autenticados
+export interface Perfil {
+  id: string;
+  user_id: string;
+  nome: string;
+  tipo: TipoUsuario;
+  foto_url?: string;
+  telefone?: string;
+  corretor?: Corretor; // preenchido se tipo === 'corretor'
+  created_at: string;
+  updated_at?: string;
+}
+
+// Interface para favorito
+export interface Favorito {
+  id: string;
+  user_id: string;
+  imovel_id: string;
+  imovel?: Imovel;
+  created_at: string;
+}
+
+// Interface para usuário autenticado
 export interface Usuario {
   id: string;
   email: string;
-  tipo: AdvertiserType;
-  corretor_id?: string;
-  imobiliaria_id?: string;
+  tipo: TipoUsuario;
+  perfil?: Perfil;
   created_at: string;
 }
 
@@ -155,4 +180,27 @@ export interface Usuario {
 export interface AuthResponse {
   usuario: Usuario;
   token: string;
+}
+
+// Dados para registro de corretor
+export interface DadosRegistroCorretor {
+  nome: string;
+  email: string;
+  senha: string;
+  creci: string;
+  whatsapp: string;
+  telefone?: string;
+  foto_url?: string;
+  imobiliaria?: {
+    nome: string;
+    creci: string;
+  };
+}
+
+// Dados para registro de usuário comum
+export interface DadosRegistroUsuario {
+  nome: string;
+  email: string;
+  senha: string;
+  telefone?: string;
 }
