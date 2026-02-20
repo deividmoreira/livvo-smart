@@ -9,9 +9,18 @@ import {
   Pressable,
   Alert,
 } from 'react-native';
-import { MapPin, ChevronDown, ChevronUp, X } from 'lucide-react-native';
+import { MapPin, ChevronDown, ChevronUp, X, User } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SPACING, BORDER_RADIUS, SHADOWS, FONTS } from '../constants';
 import { TipoImovel } from '../types';
+import { useAuth } from '../context/AuthContext';
+
+type NavType = NativeStackNavigationProp<{
+  Perfil: undefined;
+  Login: undefined;
+  [key: string]: any;
+}>;
 
 interface HeaderProps {
   searchText: string;
@@ -71,8 +80,20 @@ export const Header: React.FC<HeaderProps> = ({
   onBanheirosChange,
   onVagasChange,
 }) => {
+  const navigation = useNavigation<NavType>();
+  const { usuario } = useAuth();
   const [showPrecoDropdown, setShowPrecoDropdown] = useState(false);
   const [showQuartosDropdown, setShowQuartosDropdown] = useState(false);
+
+  const handlePerfilPress = () => {
+    if (usuario) {
+      navigation.navigate('Perfil');
+    } else {
+      navigation.navigate('Login');
+    }
+  };
+
+  const perfilInicial = usuario?.nome?.charAt(0).toUpperCase() ?? null;
 
   const hasPrecoFilter = precoMin != null || precoMax != null;
   const hasQuartosFilter = minQuartos != null || minBanheiros != null || minVagas != null;
@@ -113,21 +134,35 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Row 1: Logo + Navigation */}
+      {/* Row 1: Logo + Navigation + Perfil */}
       <View style={styles.navRow}>
         <View style={styles.logoContainer}>
           <MapPin size={20} color="#FB4748" />
           <Text style={styles.logo}>livvo</Text>
         </View>
 
-        <View style={styles.navItems}>
-          {NAV_ITEMS.map((item, i) => (
-            <TouchableOpacity key={item} style={styles.navItem} onPress={() => handleNavPress(item, i)}>
-              <Text style={[styles.navText, i === 1 && styles.navTextActive]}>
-                {item}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.navCenter}>
+          <View style={styles.navItems}>
+            {NAV_ITEMS.map((item, i) => (
+              <TouchableOpacity key={item} style={styles.navItem} onPress={() => handleNavPress(item, i)}>
+                <Text style={[styles.navText, i === 1 && styles.navTextActive]}>
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity style={styles.perfilButton} onPress={handlePerfilPress}>
+            {perfilInicial ? (
+              <View style={styles.perfilAvatar}>
+                <Text style={styles.perfilAvatarText}>{perfilInicial}</Text>
+              </View>
+            ) : (
+              <View style={styles.perfilAvatarGuest}>
+                <User size={16} color={COLORS.textSecondary} />
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -329,10 +364,43 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     letterSpacing: -0.5,
   },
+  navCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   navItems: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xl,
+  },
+  perfilButton: {
+    marginLeft: SPACING.lg,
+  },
+  perfilAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  perfilAvatarText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.surface,
+    fontFamily: FONTS.family.bodyBold,
+  },
+  perfilAvatarGuest: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.backgroundDark,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   navItem: {
     paddingVertical: SPACING.xs,
