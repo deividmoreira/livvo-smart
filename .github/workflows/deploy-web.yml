@@ -29,17 +29,14 @@ jobs:
       - name: Export web build
         run: npx expo export --platform web
 
-      - name: Check dist output
-        run: ls -la dist/ | head -20
+      - name: Prepare Vercel output
+        run: |
+          mkdir -p .vercel/output/static
+          cp -r dist/* .vercel/output/static/
+          echo '{"version": 3}' > .vercel/output/config.json
 
       - name: Install Vercel CLI
         run: npm i -g vercel
 
-      - name: Verify secrets (lengths only)
-        run: |
-          echo "VERCEL_TOKEN set: $([ -n "$VERCEL_TOKEN" ] && echo YES || echo NO) (${#VERCEL_TOKEN} chars)"
-          echo "VERCEL_ORG_ID: $VERCEL_ORG_ID"
-          echo "VERCEL_PROJECT_ID: $VERCEL_PROJECT_ID"
-
       - name: Deploy to Vercel
-        run: vercel dist --prod --yes --token=$VERCEL_TOKEN
+        run: vercel deploy --prod --prebuilt --yes --token="$VERCEL_TOKEN"
