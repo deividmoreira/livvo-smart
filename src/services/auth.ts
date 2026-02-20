@@ -14,13 +14,22 @@ export const logout = async (): Promise<void> => {
 export const buscarPerfil = async (userId: string): Promise<Perfil | null> => {
   const { data, error } = await supabase
     .from('perfis')
-    .select('*, corretor:corretores(*)')
+    .select('*')
     .eq('user_id', userId)
     .single();
 
   if (error) {
     if (error.code === 'PGRST116') return null;
     throw error;
+  }
+
+  if (data?.tipo === 'corretor') {
+    const { data: corretor } = await supabase
+      .from('corretores')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    return { ...data, corretor } as Perfil;
   }
 
   return data as Perfil;
