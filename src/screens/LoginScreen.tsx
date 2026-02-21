@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,163 +24,138 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Line, Rect, Polygon } from 'react-native-svg';
+import Svg, { Path, Rect, Polygon, Circle, Line } from 'react-native-svg';
 
 import { useAuth } from '../context/AuthContext';
-import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../constants';
+import { SPACING, BORDER_RADIUS, FONTS } from '../constants';
 import type { AuthStackParamList } from '../../App';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList>;
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: W, height: H } = Dimensions.get('window');
+const HERO_H = H * 0.36;
+const OVERLAP = 28;
 
-// SVG decorativo de silhuetas arquitetônicas
-const SvgBackground: React.FC = () => (
+// Ilustração minimalista de paisagem imobiliária
+const HeroIllustration: React.FC = () => (
   <Svg
-    width={SCREEN_WIDTH}
-    height={SCREEN_HEIGHT}
+    width={W}
+    height={HERO_H}
+    viewBox={`0 0 ${W} ${HERO_H}`}
     style={StyleSheet.absoluteFill}
-    viewBox={`0 0 ${SCREEN_WIDTH} ${SCREEN_HEIGHT}`}
   >
-    {/* Edifício 1 — torre esquerda */}
-    <Rect x="20" y={SCREEN_HEIGHT * 0.45} width="60" height={SCREEN_HEIGHT * 0.55} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-    <Rect x="30" y={SCREEN_HEIGHT * 0.38} width="40" height={SCREEN_HEIGHT * 0.62} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-    {/* Janelas edifício 1 */}
-    <Rect x="35" y={SCREEN_HEIGHT * 0.42} width="8" height="10" fill="rgba(255,255,255,0.04)" />
-    <Rect x="52" y={SCREEN_HEIGHT * 0.42} width="8" height="10" fill="rgba(255,255,255,0.04)" />
-    <Rect x="35" y={SCREEN_HEIGHT * 0.46} width="8" height="10" fill="rgba(255,255,255,0.04)" />
-    <Rect x="52" y={SCREEN_HEIGHT * 0.46} width="8" height="10" fill="rgba(255,255,255,0.04)" />
-    <Rect x="35" y={SCREEN_HEIGHT * 0.50} width="8" height="10" fill="rgba(255,255,255,0.04)" />
-    <Rect x="52" y={SCREEN_HEIGHT * 0.50} width="8" height="10" fill="rgba(255,255,255,0.04)" />
+    {/* Brilho do sol no horizonte */}
+    <Circle cx={W / 2} cy={HERO_H} r={W * 0.55} fill="rgba(180,83,9,0.07)" />
+    <Circle cx={W / 2} cy={HERO_H} r={W * 0.32} fill="rgba(180,83,9,0.06)" />
 
-    {/* Edifício 2 — centro-esquerda */}
-    <Rect x="100" y={SCREEN_HEIGHT * 0.35} width="80" height={SCREEN_HEIGHT * 0.65} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
+    {/* Colinas — fundo */}
+    <Path
+      d={`M0,${HERO_H * 0.72} Q${W * 0.22},${HERO_H * 0.5} ${W * 0.42},${HERO_H * 0.64} Q${W * 0.62},${HERO_H * 0.78} ${W * 0.82},${HERO_H * 0.52} L${W},${HERO_H * 0.6} L${W},${HERO_H} L0,${HERO_H} Z`}
+      fill="rgba(15,23,42,0.05)"
+    />
+    {/* Colinas — frente */}
+    <Path
+      d={`M0,${HERO_H * 0.84} Q${W * 0.18},${HERO_H * 0.74} ${W * 0.35},${HERO_H * 0.8} Q${W * 0.52},${HERO_H * 0.86} ${W * 0.68},${HERO_H * 0.72} Q${W * 0.84},${HERO_H * 0.62} ${W},${HERO_H * 0.76} L${W},${HERO_H} L0,${HERO_H} Z`}
+      fill="rgba(15,23,42,0.08)"
+    />
+
+    {/* Casa esquerda */}
+    <Rect x={W * 0.1} y={HERO_H * 0.65} width={W * 0.12} height={HERO_H * 0.35} fill="rgba(15,23,42,0.07)" />
     <Polygon
-      points={`100,${SCREEN_HEIGHT * 0.35} 140,${SCREEN_HEIGHT * 0.28} 180,${SCREEN_HEIGHT * 0.35}`}
-      fill="none"
-      stroke="rgba(255,255,255,0.06)"
-      strokeWidth="1"
+      points={`${W * 0.085},${HERO_H * 0.65} ${W * 0.16},${HERO_H * 0.5} ${W * 0.235},${HERO_H * 0.65}`}
+      fill="rgba(15,23,42,0.1)"
     />
-    {/* Janelas edifício 2 */}
-    {[0, 1, 2, 3, 4].map((row) =>
-      [0, 1, 2].map((col) => (
-        <Rect
-          key={`b2-${row}-${col}`}
-          x={110 + col * 22}
-          y={SCREEN_HEIGHT * 0.38 + row * 18}
-          width="12"
-          height="10"
-          fill="rgba(255,255,255,0.03)"
-        />
-      ))
-    )}
 
-    {/* Edifício 3 — direita */}
-    <Rect x={SCREEN_WIDTH - 120} y={SCREEN_HEIGHT * 0.4} width="110" height={SCREEN_HEIGHT * 0.6} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-    <Rect x={SCREEN_WIDTH - 100} y={SCREEN_HEIGHT * 0.3} width="70" height={SCREEN_HEIGHT * 0.7} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-    {[0, 1, 2, 3, 4, 5].map((row) =>
-      [0, 1].map((col) => (
-        <Rect
-          key={`b3-${row}-${col}`}
-          x={SCREEN_WIDTH - 92 + col * 28}
-          y={SCREEN_HEIGHT * 0.34 + row * 18}
-          width="14"
-          height="10"
-          fill="rgba(255,255,255,0.04)"
-        />
-      ))
-    )}
+    {/* Prédio central */}
+    <Rect x={W * 0.43} y={HERO_H * 0.38} width={W * 0.14} height={HERO_H * 0.62} fill="rgba(15,23,42,0.06)" />
+    <Rect x={W * 0.455} y={HERO_H * 0.47} width="7" height="7" fill="rgba(180,83,9,0.18)" />
+    <Rect x={W * 0.515} y={HERO_H * 0.47} width="7" height="7" fill="rgba(180,83,9,0.18)" />
+    <Rect x={W * 0.455} y={HERO_H * 0.6} width="7" height="7" fill="rgba(180,83,9,0.1)" />
+    <Rect x={W * 0.515} y={HERO_H * 0.6} width="7" height="7" fill="rgba(180,83,9,0.1)" />
 
-    {/* Linha do horizonte */}
+    {/* Casa direita */}
+    <Rect x={W * 0.71} y={HERO_H * 0.61} width={W * 0.11} height={HERO_H * 0.39} fill="rgba(15,23,42,0.07)" />
+    <Polygon
+      points={`${W * 0.695},${HERO_H * 0.61} ${W * 0.765},${HERO_H * 0.46} ${W * 0.835},${HERO_H * 0.61}`}
+      fill="rgba(15,23,42,0.09)"
+    />
+
+    {/* Árvore esquerda */}
+    <Rect x={W * 0.295} y={HERO_H * 0.72} width="3" height={HERO_H * 0.28} fill="rgba(15,23,42,0.1)" />
+    <Circle cx={W * 0.297} cy={HERO_H * 0.68} r="11" fill="rgba(15,23,42,0.07)" />
+
+    {/* Árvore direita */}
+    <Rect x={W * 0.635} y={HERO_H * 0.7} width="3" height={HERO_H * 0.3} fill="rgba(15,23,42,0.1)" />
+    <Circle cx={W * 0.637} cy={HERO_H * 0.66} r="11" fill="rgba(15,23,42,0.07)" />
+
+    {/* Linha do horizonte pontilhada */}
     <Line
-      x1="0"
-      y1={SCREEN_HEIGHT * 0.65}
-      x2={SCREEN_WIDTH}
-      y2={SCREEN_HEIGHT * 0.65}
-      stroke="rgba(255,255,255,0.04)"
-      strokeWidth="1"
+      x1="0" y1={HERO_H * 0.74}
+      x2={W} y2={HERO_H * 0.74}
+      stroke="rgba(180,83,9,0.14)"
+      strokeWidth="0.8"
+      strokeDasharray="5,10"
     />
-
-    {/* Linhas geométricas decorativas — canto superior */}
-    <Line x1={SCREEN_WIDTH * 0.7} y1="0" x2={SCREEN_WIDTH} y2={SCREEN_HEIGHT * 0.2} stroke="rgba(180,83,9,0.12)" strokeWidth="1" />
-    <Line x1={SCREEN_WIDTH * 0.85} y1="0" x2={SCREEN_WIDTH} y2={SCREEN_HEIGHT * 0.1} stroke="rgba(180,83,9,0.08)" strokeWidth="1" />
   </Svg>
 );
 
-// Input com animação de foco (underline bronze)
+// Input com underline animado — tema claro
 interface AnimatedInputProps {
   label: string;
   icon: React.ReactNode;
   value: string;
   onChangeText: (v: string) => void;
   placeholder: string;
-  keyboardType?: 'default' | 'email-address';
-  autoCapitalize?: 'none' | 'sentences';
+  keyboardType?: 'default' | 'email-address' | 'phone-pad';
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   secureTextEntry?: boolean;
   rightElement?: React.ReactNode;
   autoCorrect?: boolean;
 }
 
-const AnimatedInput: React.FC<AnimatedInputProps> = ({
-  label,
-  icon,
-  value,
-  onChangeText,
-  placeholder,
-  keyboardType = 'default',
-  autoCapitalize = 'none',
-  secureTextEntry = false,
-  rightElement,
-  autoCorrect = false,
+export const AnimatedInput: React.FC<AnimatedInputProps> = ({
+  label, icon, value, onChangeText, placeholder,
+  keyboardType = 'default', autoCapitalize = 'none',
+  secureTextEntry = false, rightElement, autoCorrect = false,
 }) => {
-  const borderAnim = useSharedValue(0);
+  const focused = useSharedValue(0);
 
   const underlineStyle = useAnimatedStyle(() => ({
-    backgroundColor: borderAnim.value === 1
-      ? '#B45309'
-      : 'rgba(255,255,255,0.2)',
-    height: borderAnim.value === 1 ? 1.5 : 1,
+    backgroundColor: focused.value === 1 ? '#B45309' : '#E7E5E4',
+    height: focused.value === 1 ? 1.5 : 1,
   }));
 
   const labelStyle = useAnimatedStyle(() => ({
-    color: borderAnim.value === 1
-      ? '#B45309'
-      : 'rgba(255,255,255,0.5)',
+    color: focused.value === 1 ? '#B45309' : '#A8A29E',
   }));
 
   return (
-    <View style={inputStyles.wrapper}>
-      <Animated.Text style={[inputStyles.label, labelStyle]}>{label}</Animated.Text>
-      <View style={inputStyles.row}>
-        <View style={inputStyles.icon}>{icon}</View>
+    <View style={iStyles.wrapper}>
+      <Animated.Text style={[iStyles.label, labelStyle]}>{label}</Animated.Text>
+      <View style={iStyles.row}>
+        <View style={iStyles.icon}>{icon}</View>
         <TextInput
-          style={inputStyles.input}
+          style={iStyles.input}
           placeholder={placeholder}
-          placeholderTextColor="rgba(255,255,255,0.25)"
+          placeholderTextColor="#C8C4BF"
           value={value}
           onChangeText={onChangeText}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           autoCorrect={autoCorrect}
           secureTextEntry={secureTextEntry}
-          onFocus={() => {
-            borderAnim.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.quad) });
-          }}
-          onBlur={() => {
-            borderAnim.value = withTiming(0, { duration: 250, easing: Easing.out(Easing.quad) });
-          }}
+          onFocus={() => { focused.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.quad) }); }}
+          onBlur={() => { focused.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.quad) }); }}
         />
         {rightElement}
       </View>
-      <Animated.View style={[inputStyles.underline, underlineStyle]} />
+      <Animated.View style={[iStyles.underline, underlineStyle]} />
     </View>
   );
 };
 
-const inputStyles = StyleSheet.create({
-  wrapper: {
-    marginBottom: SPACING.xl,
-  },
+const iStyles = StyleSheet.create({
+  wrapper: { marginBottom: SPACING.xl },
   label: {
     fontSize: 11,
     fontFamily: FONTS.medium,
@@ -188,29 +163,13 @@ const inputStyles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: SPACING.sm,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingBottom: SPACING.sm,
-  },
-  icon: {
-    marginRight: SPACING.md,
-    opacity: 0.6,
-  },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    color: '#FFFFFF',
-    fontFamily: FONTS.regular,
-    paddingVertical: 0,
-  },
-  underline: {
-    width: '100%',
-    marginTop: 2,
-  },
+  row: { flexDirection: 'row', alignItems: 'center', paddingBottom: SPACING.sm },
+  icon: { marginRight: SPACING.md },
+  input: { flex: 1, fontSize: 15, color: '#1C1917', fontFamily: FONTS.regular, paddingVertical: 0 },
+  underline: { width: '100%', marginTop: 2 },
 });
 
-// Componente principal
+// Tela principal
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const { login } = useAuth();
@@ -220,46 +179,27 @@ export const LoginScreen: React.FC = () => {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
 
-  // Valores de animação
-  const logoOpacity = useSharedValue(0);
-  const logoTranslateY = useSharedValue(-30);
-  const subtitleOpacity = useSharedValue(0);
+  const heroOpacity = useSharedValue(0);
+  const logoY = useSharedValue(-16);
   const cardOpacity = useSharedValue(0);
-  const cardTranslateY = useSharedValue(40);
+  const cardY = useSharedValue(50);
 
   useEffect(() => {
-    // Logo: fade-in + slide from top
-    logoOpacity.value = withDelay(0, withSpring(1, { damping: 18, stiffness: 100 }));
-    logoTranslateY.value = withDelay(0, withSpring(0, { damping: 18, stiffness: 100 }));
-
-    // Subtítulo: fade-in após 200ms
-    subtitleOpacity.value = withDelay(200, withTiming(1, { duration: 600, easing: Easing.out(Easing.quad) }));
-
-    // Card: fade-in + slide from bottom após 300ms
-    cardOpacity.value = withDelay(300, withSpring(1, { damping: 18, stiffness: 100 }));
-    cardTranslateY.value = withDelay(300, withSpring(0, { damping: 18, stiffness: 100 }));
+    heroOpacity.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) });
+    logoY.value = withDelay(100, withSpring(0, { damping: 18, stiffness: 90 }));
+    cardOpacity.value = withDelay(250, withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) }));
+    cardY.value = withDelay(250, withSpring(0, { damping: 18, stiffness: 90 }));
   }, []);
 
-  const logoAnimStyle = useAnimatedStyle(() => ({
-    opacity: logoOpacity.value,
-    transform: [{ translateY: logoTranslateY.value }],
-  }));
-
-  const subtitleAnimStyle = useAnimatedStyle(() => ({
-    opacity: subtitleOpacity.value,
-  }));
-
-  const cardAnimStyle = useAnimatedStyle(() => ({
-    opacity: cardOpacity.value,
-    transform: [{ translateY: cardTranslateY.value }],
-  }));
+  const heroStyle = useAnimatedStyle(() => ({ opacity: heroOpacity.value }));
+  const logoStyle = useAnimatedStyle(() => ({ transform: [{ translateY: logoY.value }] }));
+  const cardStyle = useAnimatedStyle(() => ({ opacity: cardOpacity.value, transform: [{ translateY: cardY.value }] }));
 
   const handleLogin = async () => {
     if (!email.trim() || !senha) {
       Alert.alert('Campos obrigatórios', 'Preencha e-mail e senha.');
       return;
     }
-
     setCarregando(true);
     try {
       await login(email.trim().toLowerCase(), senha);
@@ -279,42 +219,38 @@ export const LoginScreen: React.FC = () => {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Gradiente de fundo navy */}
-      <LinearGradient
-        colors={['#0F172A', '#1E293B']}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* SVG arquitetônico decorativo */}
-      <SvgBackground />
-
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        bounces={false}
       >
-        {/* Seção do Logo */}
-        <Animated.View style={[styles.logoSection, logoAnimStyle]}>
-          <Text style={styles.logoText}>LIVVO</Text>
-          <Text style={styles.logoText}>SMART</Text>
-          <View style={styles.accentLine} />
+        {/* Hero */}
+        <Animated.View style={[styles.hero, heroStyle]}>
+          <LinearGradient
+            colors={['#F5EFE6', '#EDE4D3']}
+            style={StyleSheet.absoluteFill}
+          />
+          <HeroIllustration />
+
+          <Animated.View style={[styles.logoBox, logoStyle]}>
+            <Text style={styles.logoLine}>LIVVO</Text>
+            <Text style={styles.logoLine}>SMART</Text>
+            <View style={styles.accentLine} />
+          </Animated.View>
         </Animated.View>
 
-        <Animated.Text style={[styles.subtitulo, subtitleAnimStyle]}>
-          Seu portal de imóveis premium
-        </Animated.Text>
+        {/* Card do formulário */}
+        <Animated.View style={[styles.card, cardStyle]}>
+          <Text style={styles.titulo}>Bem-vindo de volta</Text>
+          <Text style={styles.subtitulo}>Acesse sua conta para continuar</Text>
 
-        {/* Card glassmorphism */}
-        <Animated.View style={[styles.card, cardAnimStyle]}>
-          <Text style={styles.cardTitulo}>Bem-vindo de volta</Text>
-
-          {/* Input E-mail */}
           <AnimatedInput
             label="E-mail"
-            icon={<Mail size={18} color="rgba(255,255,255,0.6)" />}
+            icon={<Mail size={17} color="#A8A29E" />}
             value={email}
             onChangeText={setEmail}
             placeholder="seu@email.com"
@@ -323,10 +259,9 @@ export const LoginScreen: React.FC = () => {
             autoCorrect={false}
           />
 
-          {/* Input Senha */}
           <AnimatedInput
             label="Senha"
-            icon={<Lock size={18} color="rgba(255,255,255,0.6)" />}
+            icon={<Lock size={17} color="#A8A29E" />}
             value={senha}
             onChangeText={setSenha}
             placeholder="••••••••"
@@ -334,39 +269,30 @@ export const LoginScreen: React.FC = () => {
             rightElement={
               <TouchableOpacity onPress={() => setMostrarSenha(!mostrarSenha)} style={styles.eyeBtn}>
                 {mostrarSenha
-                  ? <EyeOff size={18} color="rgba(255,255,255,0.5)" />
-                  : <Eye size={18} color="rgba(255,255,255,0.5)" />}
+                  ? <EyeOff size={17} color="#A8A29E" />
+                  : <Eye size={17} color="#A8A29E" />}
               </TouchableOpacity>
             }
           />
 
-          {/* Botão Entrar com gradiente bronze */}
           <TouchableOpacity
             onPress={handleLogin}
             disabled={carregando}
             activeOpacity={0.85}
-            style={styles.btnWrapper}
+            style={[styles.btn, carregando && styles.btnOff]}
           >
-            <LinearGradient
-              colors={['#B45309', '#92400E']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={[styles.btnGradient, carregando && styles.btnDisabled]}
-            >
-              {carregando
-                ? <ActivityIndicator color="#FFFFFF" />
-                : <Text style={styles.btnTexto}>ENTRAR</Text>}
-            </LinearGradient>
+            {carregando
+              ? <ActivityIndicator color="#FFFFFF" />
+              : <Text style={styles.btnTxt}>ENTRAR</Text>}
           </TouchableOpacity>
 
-          {/* Link criar conta */}
           <TouchableOpacity
             onPress={() => navigation.navigate('Register')}
-            style={styles.linkCriarConta}
+            style={styles.linkBox}
           >
-            <Text style={styles.linkTexto}>
-              Não tem conta?{' '}
-              <Text style={styles.linkDestaque}>Criar conta →</Text>
+            <Text style={styles.linkTxt}>
+              Não tem conta?{'  '}
+              <Text style={styles.linkAccent}>Criar conta →</Text>
             </Text>
           </TouchableOpacity>
         </Animated.View>
@@ -376,100 +302,100 @@ export const LoginScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#FFFFFF',
   },
   scroll: {
     flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.xxxl,
   },
-  logoSection: {
+  // Hero
+  hero: {
+    height: HERO_H,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+    paddingBottom: OVERLAP + SPACING.lg,
     alignItems: 'center',
-    marginBottom: SPACING.md,
   },
-  logoText: {
-    fontSize: 38,
+  logoBox: {
+    alignItems: 'center',
+  },
+  logoLine: {
+    fontSize: 36,
     fontFamily: FONTS.heading,
-    color: '#FFFFFF',
+    color: '#0F172A',
     letterSpacing: 6,
-    lineHeight: 44,
+    lineHeight: 42,
   },
   accentLine: {
-    width: 48,
+    width: 36,
     height: 2,
     backgroundColor: '#B45309',
     marginTop: SPACING.md,
     borderRadius: 1,
   },
-  subtitulo: {
-    textAlign: 'center',
-    fontSize: 13,
-    fontFamily: FONTS.regular,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 0.5,
-    marginBottom: SPACING.xxxl,
-  },
+  // Card
   card: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: BORDER_RADIUS.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    padding: SPACING.xl,
-    // Sombra suave escura
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    elevation: 12,
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: OVERLAP,
+    borderTopRightRadius: OVERLAP,
+    marginTop: -OVERLAP,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.xxxl,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  cardTitulo: {
+  titulo: {
     fontSize: 22,
     fontFamily: FONTS.heading,
-    color: '#FFFFFF',
-    marginBottom: SPACING.xl,
-    letterSpacing: 0.3,
+    color: '#0F172A',
+    marginBottom: SPACING.xs,
+  },
+  subtitulo: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: '#A8A29E',
+    marginBottom: SPACING.xxl,
   },
   eyeBtn: {
     padding: SPACING.xs,
   },
-  btnWrapper: {
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.lg,
-  },
-  btnGradient: {
-    paddingVertical: 16,
+  btn: {
+    backgroundColor: '#B45309',
+    paddingVertical: 15,
     borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    // Brilho dourado sutil
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.lg,
     shadowColor: '#B45309',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  btnDisabled: {
-    opacity: 0.7,
-  },
-  btnTexto: {
+  btnOff: { opacity: 0.7 },
+  btnTxt: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: FONTS.bold,
-    letterSpacing: 2,
+    letterSpacing: 2.5,
   },
-  linkCriarConta: {
+  linkBox: {
     alignItems: 'center',
     paddingVertical: SPACING.sm,
   },
-  linkTexto: {
+  linkTxt: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: 'rgba(255,255,255,0.45)',
+    color: '#A8A29E',
   },
-  linkDestaque: {
+  linkAccent: {
     color: '#B45309',
     fontFamily: FONTS.medium,
   },
