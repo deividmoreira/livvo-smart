@@ -1,0 +1,271 @@
+Giro Jeri - Especificacao Funcional e Tecnica (PWA)
+
+
+
+
+                                              Giro Jeri
+ Especificacao Funcional e Tecnica do App Web (PWA)
+
+ Versao                 v1.2
+
+ Data                   12/02/2026
+
+ Escopo                 Passeios (Privativo/Compartilhado) + Translado + Portal Agencia + Portal Admin
+
+ Regras-chave           Disputa competitiva (20 min), split com percentual unico (padrao 15%/85% -
+                        configuravel), finalizacao manual, cancelamento via suporte, alta temporada Jul-Jan
+                        (+10%) com trava de feriado, feriados fora da alta (+10% - configuravel).
+
+
+
+
+ 1. Visao geral
+ Giro Jeri e um aplicativo web instalavel (PWA), com interface no estilo iFood, para agendamento e
+ compra de passeios e translados. O app funciona como marketplace: varias agencias prestadoras
+ recebem a solicitacao em tempo real, e a primeira que aceitar fica com a corrida. A continuidade do
+ atendimento ocorre via WhatsApp apos a confirmacao; a agencia finaliza a corrida manualmente no
+ painel.
+
+ Modelo financeiro (split): pagamento antecipado com comissao fixa. Todas as agencias pagam o
+ mesmo percentual. Percentual padrao do MVP: 15% plataforma / 85% agencia (configuravel no
+ Admin).
+
+ 2. Perfis e portais
+ ● Cliente: navega, agenda, paga e acompanha status em 'Minhas corridas'.
+
+ ● Agencia: recebe solicitacoes em disputa, aceita (competitivo) e finaliza manualmente; contato
+    via WhatsApp.
+ ● Admin (Giro Jeri): monitora disputas, corridas sem aceite, agencias, precos/regras,
+    cancelamentos e reembolsos.
+
+ 3. Funcionalidades (resumo)
+ Portal               Funcionalidades principais (MVP)
+
+ Cliente              Login; Catalogo (Privativo/Compartilhado/Translado); Agendamento; Pagamento;
+                      Acompanhamento (Aguardando/Confirmada/Finalizada/Sem aceite); Suporte
+                      WhatsApp.
+
+ Agencia              Dashboard 'Ao vivo' (disputa 20 min); Aceitar corrida; Corridas confirmadas; Botao
+                      WhatsApp; Finalizar corrida; Financeiro basico.
+
+ Admin                Dashboard; Em disputa; Sem aceite; Agencias (ativar/suspender); Regras de preco
+                      (alta/feriado); Cancelamento e reembolso; Auditoria.
+
+
+
+
+                                                                                                       Pagina 1
+Giro Jeri - Especificacao Funcional e Tecnica (PWA)
+
+
+
+ 4. Fluxos do Cliente
+ 4.1 Passeio Privativo (com escolha de veiculos)
+1 Selecionar passeio (aba Privativo).
+2 Informar quantidade de pessoas (adultos/criancas).
+3 Selecionar veiculo(s) e quantidades (multi-veiculo). O total base e recalculado em tempo real.
+4 Selecionar local de saida (hotel/pousada/local).
+5 Informar dados adicionais (nome, WhatsApp, data/horario, observacoes).
+6 Checkout e pagamento.
+7 Pos-pagamento: status AGUARDANDO_ACEITE por 20 min (disputa entre agencias).
+
+ 4.2 Passeio Compartilhado (sem escolha de veiculo)
+1 Selecionar passeio (aba Compartilhado). Preco exibido como 'a partir de R$ 120,00 por pessoa'.
+2 Informar quantidade de pessoas. O total base = preco por pessoa x quantidade.
+3 Selecionar local de saida.
+4 Informar dados adicionais.
+5 Checkout e pagamento.
+6 Pos-pagamento: status AGUARDANDO_ACEITE por 20 min.
+
+ 4.3 Translado
+1 Selecionar Translado.
+2 Informar local/origem-destino (conforme catalogo) e data/horario.
+3 Informar quantidade de pessoas e observacoes (bagagem, etc.).
+4 Checkout e pagamento.
+5 Pos-pagamento: disputa 20 min e confirmacao da agencia vencedora.
+
+ 5. Disputa (Aceite competitivo) - 20 minutos
+ Apos o pagamento aprovado, a corrida entra em AGUARDANDO_ACEITE e fica visivel para todas
+ as agencias ATIVAS. A primeira agencia que clicar em ACEITAR vence. As demais veem apenas
+ a mensagem neutra "Corrida indisponivel. Ja foi aceita.", sem revelar qual agencia ganhou.
+
+ Parametro                    Valor
+
+ Tempo de aceite              20 minutos (acceptExpiresAt = agora + 20min)
+
+ Quem recebe                  Todas as agencias com status ATIVA
+
+ Criterio de vitoria          Primeiro aceite valido (operacao atomica no backend)
+
+ Se expirar                   Status SEM_ACEITE e aparece no Admin para intervencao
+
+
+
+
+                                                                                            Pagina 2
+Giro Jeri - Especificacao Funcional e Tecnica (PWA)
+
+
+
+ 6. Operacao via WhatsApp e finalizacao manual
+ Apos a confirmacao, o atendimento operacional (combinados, detalhes, ajustes) ocorre via
+ WhatsApp. No painel da agencia, existe um botao Marcar como Finalizada. Ao clicar, o sistema
+ atualiza o status para FINALIZADA e registra data/hora de finalizacao (finalizedAt).
+
+ 7. Cancelamento e reembolso (somente via suporte)
+ O cliente nao cancela diretamente pelo app. Para solicitar cancelamento e reembolso, o cliente
+ entra em contato com o suporte da Giro Jeri. O Admin registra o cancelamento e processa o
+ reembolso conforme regras de antecedencia.
+
+ Regras definidas por voce:
+
+ • Translado: cancelamento com minimo de 72h (3 dias) de antecedencia nao tem taxa
+    (reembolso 100%).
+
+ • Passeios (privativo/compartilhado): cancelamento com minimo de 24h de antecedencia nao
+    tem taxa (reembolso 100%).
+
+ • Fora do prazo, o valor do reembolso varia conforme data do cancelamento x data do servico.
+    Os percentuais de taxa podem ser configurados no Admin (ex.: 20% e 50% para cancelamentos
+    muito em cima).
+
+ Servico                     Janela                       Taxa                  Reembolso
+
+ Translado                   >= 72h                       0% (definido)         100% (definido)
+
+ Translado                   < 72h                        Configuravel          Configuravel
+
+ Passeios                    >= 24h                       0% (definido)         100% (definido)
+
+ Passeios                    < 24h                        Configuravel          Configuravel
+
+
+ Formula: antecedenciaHoras = dataServico - dataCancelamento; valorTaxa = valorPago * (taxa%);
+ valorReembolso = valorPago - valorTaxa. Reembolso e registrado com status
+ PENDENTE/PROCESSADO/NEGADO no portal Admin.
+
+
+ 8. Precificacao automatica por data (alta temporada e
+ feriados)
+ Alta temporada (definida): de Julho a Janeiro aplica +10% no total final (multiplicador 1.10).
+ Quando a data esta na alta temporada, o valor fica travado: se houver feriado no periodo, nao soma
+ nada adicional.
+ Feriados: fora da alta temporada, o app aplica um adicional automatico (padrao +10%,
+ configuravel) conforme a data escolhida pelo cliente e uma lista de feriados cadastrada no Admin.
+
+ Condicao                                  Ajuste                  Observacao
+
+ Alta temporada (Jul-Jan)                  +10% (fixo)             Se cair feriado, mantem o mesmo valor
+                                                                   da alta.
+
+ Feriado fora da alta                      +10% (configuravel)     Aplica conforme lista de feriados
+                                                                   cadastrada.
+
+
+
+
+                                                                                                       Pagina 3
+Giro Jeri - Especificacao Funcional e Tecnica (PWA)
+
+
+
+ Dia comum                                 Sem ajuste   -
+
+
+
+
+                                                            Pagina 4
+Giro Jeri - Especificacao Funcional e Tecnica (PWA)
+
+
+
+ 9. Arquitetura tecnica (frontend, backend, dados)
+ Frontend (PWA)
+ App web mobile-first com UI estilo iFood, menu inferior (Inicio / Minhas corridas / Perfil). Telas
+ principais: Home, listagem de servicos, fluxo de agendamento (privativo/compartilhado/translado),
+ checkout, status (aguardando/confirmada), minhas corridas.
+
+ Backend (API)
+ API responsavel por autenticacao, catalogo, cotacao de preco, criacao de pedido, pagamento/split,
+ disputa (aceite atomico), finalizacao manual, administracao (feriados, agencias), cancelamento e
+ reembolso.
+
+ Banco de dados
+ Postgres com entidades para usuarios, agencias, servicos, veiculos, pedidos (corridas), itens de
+ veiculo (privativo), pagamentos, reembolsos, feriados e auditoria.
+
+ Tempo real
+ Atualizacao em tempo real no portal da agencia (lista de disputas) e no status do cliente
+ (Aguardando -> Confirmada). Pode ser implementado com SSE ou WebSocket.
+
+ 10. Modelo de dados (campos essenciais)
+ Abaixo, o conjunto minimo de campos para implementar o MVP com rastreabilidade e auditoria.
+
+ • Order (Corrida/Pedido): clientId, agencyId (nullable), serviceId, serviceType, mode,
+    pickupLocation, scheduledAt, adults/children/peopleTotal, baseTotal, pricingAdjustmentType,
+    pricingMultiplier, finalTotal, commissionPercent, platformAmount, agencyAmount, status,
+    acceptExpiresAt, acceptedAt, finalizedAt, createdAt.
+
+ • OrderVehicle (Privativo): orderId, vehicleId, quantity, unitPriceSnapshot, lineTotal.
+ • Agency: name, cnpj, status (ATIVA/SUSPENSA), mpAccountId.
+ • Payment: orderId, provider, status, externalPaymentId, amount.
+ • Refund: orderId, status, hoursBeforeService, feePercent, feeAmount, refundAmount,
+    externalRefundId.
+
+ • Holiday: name, startDate, endDate, active.
+
+ 11. API (endpoints recomendados)
+ Categoria            Endpoint                               Descricao
+
+ Catalogo             GET /api/services; GET /api/vehicles   Lista servicos e veiculos ativos.
+
+ Preco                POST /api/pricing/quote                Retorna cotacao com ajustes (alta/feriado),
+                                                             breakdown e total.
+
+ Pedido               POST /api/orders                       Cria pedido com dados do cliente (modo, data,
+                                                             saida, pessoas).
+
+ Pagamento            POST /api/payments/create; POST        Cria pagamento e confirma via webhook. Ao
+                      /api/payments/webhook                  aprovar, inicia disputa (20 min).
+
+
+
+                                                                                                     Pagina 5
+Giro Jeri - Especificacao Funcional e Tecnica (PWA)
+
+
+
+ Categoria            Endpoint                               Descricao
+
+ Disputa              GET /api/agencies/orders/live; POST    Lista corridas em disputa e realiza aceite
+                      /api/orders/{id}/accept                atomico (primeiro vence).
+
+ Operacao             POST /api/orders/{id}/finalize         Agencia finaliza manualmente.
+
+ Admin                POST /api/admin/orders/{id}/cancel;    Cancelamento e reembolso via suporte;
+                      /refund/*                              calcula taxa conforme politica.
+
+ Admin                CRUD /api/admin/holidays; /agencies;   Gestao de feriados, agencias e regras
+                      /pricing-rules                         (percentuais).
+
+
+ 12. Seguranca, permissoes e auditoria
+ • Controle de acesso por papel (CLIENTE/AGENCIA/ADMIN).
+ • Cliente so visualiza pedidos proprios.
+ • Agencia so ve detalhes completos de pedidos que venceu; em disputa ve apenas dados
+    minimos.
+
+ • Aceite atomico com transacao/lock para evitar dupla confirmacao.
+ • Webhooks de pagamento validados (assinatura) e registro em audit_logs.
+
+ 13. Escopo MVP e evolucao
+ MVP: catalogo; agendamento priv/comp/translado; precificacao (alta/feriado); pagamento; disputa;
+ WhatsApp; finalizacao manual; admin (agencias, feriados, reembolsos, percentuais).
+ V2: push notifications; cupons; avaliacao; relatorios avancados; auto-alertas de corridas nao
+ finalizadas; integracoes adicionais.
+
+
+
+
+                                                                                                      Pagina 6
+

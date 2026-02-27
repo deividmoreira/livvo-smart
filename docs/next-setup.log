@@ -1,0 +1,8 @@
+The directory giro-jeri contains files that could conflict:
+
+  Giro_Jeri_Especificacao_Tecnica_e_Funcional_v1_2.pdf
+  extracted_spec.txt
+  next-setup.log
+
+Either try using a new directory name, or remove the files listed above.
+
