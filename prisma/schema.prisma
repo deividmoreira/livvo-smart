@@ -1,0 +1,209 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CLIENTE
+  AGENCIA
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  password  String
+  role      Role     @default(CLIENTE)
+  
+  agency    Agency?
+  orders    Order[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum AgencyStatus {
+  ATIVA
+  SUSPENSA
+}
+
+model Agency {
+  id          String       @id @default(uuid())
+  userId      String       @unique
+  user        User         @relation(fields: [userId], references: [id])
+  name        String
+  cnpj        String       @unique
+  status      AgencyStatus @default(ATIVA)
+  mpAccountId String? // Mercado Pago account ID
+  
+  ordersWon   Order[]
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+enum ServiceType {
+  PRIVATIVO
+  COMPARTILHADO
+  TRANSLADO
+}
+
+model Service {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  type        ServiceType
+  basePrice   Float? // Base price for non-vehicle specific (e.g., COMPARTILHADO or TRANSLADO)
+  active      Boolean     @default(true)
+  
+  orders      Order[]
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Vehicle {
+  id           String         @id @default(uuid())
+  name         String
+  capacity     Int
+  price        Float
+  active       Boolean        @default(true)
+  
+  orderVehicles OrderVehicle[]
+  
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+enum OrderStatus {
+  AGUARDANDO_PAGAMENTO
+  AGUARDANDO_ACEITE
+  SEM_ACEITE
+  CONFIRMADA
+  FINALIZADA
+  CANCELADA
+}
+
+model Order {
+  id                    String      @id @default(uuid())
+  clientId              String
+  client                User        @relation(fields: [clientId], references: [id])
+  
+  agencyId              String?
+  agency                Agency?     @relation(fields: [agencyId], references: [id])
+  
+  serviceId             String
+  service               Service     @relation(fields: [serviceId], references: [id])
+  
+  pickupLocation        String
+  scheduledAt           DateTime
+  
+  adults                Int         @default(1)
+  children              Int         @default(0)
+  
+  baseTotal             Float
+  pricingMultiplier     Float       @default(1.0)
+  finalTotal            Float
+  
+  commissionPercent     Float       @default(15.0)
+  platformAmount        Float
+  agencyAmount          Float
+  
+  status                OrderStatus @default(AGUARDANDO_PAGAMENTO)
+  
+  acceptExpiresAt       DateTime?
+  acceptedAt            DateTime?
+  finalizedAt           DateTime?
+  
+  orderVehicles         OrderVehicle[]
+  payments              Payment[]
+  refunds               Refund[]
+  
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+}
+
+model OrderVehicle {
+  id                String  @id @default(uuid())
+  orderId           String
+  order             Order   @relation(fields: [orderId], references: [id])
+  
+  vehicleId         String
+  vehicle           Vehicle @relation(fields: [vehicleId], references: [id])
+  
+  quantity          Int
+  unitPriceSnapshot Float
+  lineTotal         Float
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  orderId           String
+  order             Order         @relation(fields: [orderId], references: [id])
+  
+  provider          String        @default("MERCADO_PAGO")
+  status            PaymentStatus @default(PENDING)
+  externalPaymentId String?
+  amount            Float
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSED
+  DENIED
+}
+
+model Refund {
+  id                 String       @id @default(uuid())
+  orderId            String
+  order              Order        @relation(fields: [orderId], references: [id])
+  
+  status             RefundStatus @default(PENDING)
+  hoursBeforeService Float
+  feePercent         Float
+  feeAmount          Float
+  refundAmount       Float
+  externalRefundId   String?
+  
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+}
+
+model Holiday {
+  id        String   @id @default(uuid())
+  name      String
+  date      DateTime @db.Date // Fixed date for the holiday
+  active    Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PricingRule {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  value        Float    // E.g. 10.0 for 10%
+  description  String?
+  active       Boolean  @default(true)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
